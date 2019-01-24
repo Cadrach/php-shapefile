@@ -709,8 +709,8 @@ class ShapeFile implements \Iterator
     {
         $i      = -1;
         $parts  = array();
-        foreach ($data['parts'] as $rawpart) {
-            if ($this->isClockwise($rawpart['points'])) {
+        foreach ($data['parts'] as $k=>$rawpart) {
+            if ($k == 0 || $this->isClockwise($rawpart['points'])) { //force ignore clockwise on first polygon
                 ++$i;
                 $parts[$i] = array(
                     'numrings'  => 0,
