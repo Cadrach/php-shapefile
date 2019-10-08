@@ -1,11 +1,11 @@
 <?php
 /***************************************************************************************************
 ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
-    Author          : Gaspare Sganga
-    Version         : 2.4.3
-    License         : MIT
-    Documentation   : https://gasparesganga.com/labs/php-shapefile/
-****************************************************************************************************/
+Author          : Gaspare Sganga
+Version         : 2.4.3
+License         : MIT
+Documentation   : https://gasparesganga.com/labs/php-shapefile/
+ ****************************************************************************************************/
 
 namespace ShapeFile;
 
@@ -25,7 +25,7 @@ class ShapeFile implements \Iterator
     const GEOMETRY_BOTH             = 0b11;     // DEPRECATED in v2.4.0!
     // End of file
     const EOF                       = 0;
-    
+
     private static $error_messages = array(
         'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
         'FILE_OPEN'                 => array(12, "Unable to read file"),
@@ -37,7 +37,7 @@ class ShapeFile implements \Iterator
         'DBF_MISMATCHED_FILE'       => array(42, "Mismatched DBF file. Number of records not corresponding to the SHP file"),
         'DBF_EOF_REACHED'           => array(43, "End of DBF file reached. Number of records not corresponding to the SHP file"),
         'RECORD_INDEX_NOT_VALID'    => array(91, "Record index not valid. Check the total number of records in the SHP file")
-    ); 
+    );
     private static $shape_types = array(
         0   => 'Null Shape',
         1   => 'Point',
@@ -53,7 +53,7 @@ class ShapeFile implements \Iterator
         25  => 'PolygonM',
         28  => 'MultiPointM'
     );
-    
+
     // Handles
     private $shp_handle;
     private $shx_handle;
@@ -62,25 +62,25 @@ class ShapeFile implements \Iterator
     private $shp_size;
     private $shx_size;
     private $dbf_size;
-    
+
     // Shape info
     private $bounding_box;
     private $shape_type;
     private $prj;
-    
+
     // DBF
     private $dbf_fields;
     private $dbf_header_size;
     private $dbf_record_size;
-    
+
     // Misc
     private $flags;
     private $default_geometry_format;
     private $big_endian_machine;
     private $current_record;
     private $tot_records;
-    
-    
+
+
     public function __construct($files, $flags = 0)
     {
         if (is_string($files)) {
@@ -95,7 +95,7 @@ class ShapeFile implements \Iterator
             $dbf_file = isset($files['dbf']) ? $files['dbf'] : '';
             $prj_file = isset($files['prj']) ? $files['prj'] : '';
         }
-        
+
         $this->init(
             $this->openFile($shp_file),
             filesize($shp_file),
@@ -107,21 +107,21 @@ class ShapeFile implements \Iterator
             $flags
         );
     }
-    
+
     public function __destruct()
     {
         $this->closeFile($this->shp_handle);
         $this->closeFile($this->shx_handle);
         $this->closeFile($this->dbf_handle);
     }
-    
-    
+
+
     public function rewind()
     {
         $this->current_record = 0;
         $this->next();
     }
-    
+
     public function next()
     {
         ++$this->current_record;
@@ -129,7 +129,7 @@ class ShapeFile implements \Iterator
             $this->current_record = self::EOF;
         }
     }
-    
+
     public function current()
     {
         return $this->readSHPRecord();
@@ -144,8 +144,8 @@ class ShapeFile implements \Iterator
     {
         return ($this->current_record !== self::EOF);
     }
-    
-    
+
+
     public function getShapeType($format = self::FORMAT_INT)
     {
         if ($format == self::FORMAT_STR) {
@@ -154,33 +154,33 @@ class ShapeFile implements \Iterator
             return $this->shape_type;
         }
     }
-    
+
     public function getBoundingBox()
     {
         return $this->bounding_box;
     }
-    
+
     public function getPRJ()
     {
         return $this->prj;
     }
-    
+
     public function getDBFFields()
     {
         return $this->dbf_fields;
     }
-    
-    
+
+
     public function getTotRecords()
     {
         return $this->tot_records;
     }
-    
+
     public function getCurrentRecord()
     {
         return $this->current_record;
     }
-    
+
     public function setCurrentRecord($index)
     {
         if (!$this->checkRecordIndex($index)) {
@@ -188,13 +188,13 @@ class ShapeFile implements \Iterator
         }
         $this->current_record = $index;
     }
-    
-    
+
+
     public function setDefaultGeometryFormat($geometry_format)
     {
         $this->default_geometry_format = $geometry_format;
     }
-    
+
     public function getRecord($geometry_format = null)
     {
         $ret = $this->readSHPRecord($geometry_format);
@@ -203,9 +203,9 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
-    
-    
+
+
+
     /***************************** PROTECTED *****************************/
     protected function init(
         $shp_handle,
@@ -225,28 +225,28 @@ class ShapeFile implements \Iterator
         $this->shx_size   = $shx_size;
         $this->dbf_size   = $dbf_size;
         $this->prj        = $prj;
-        
+
         // Flags
         $this->flags = array(
             self::FLAG_SUPPRESS_Z   => ($flags & self::FLAG_SUPPRESS_Z) > 0,
             self::FLAG_SUPPRESS_M   => ($flags & self::FLAG_SUPPRESS_M) > 0
         );
-        
+
         // Misc
         $this->default_geometry_format  = self::GEOMETRY_ARRAY;
         $this->big_endian_machine       = current(unpack('v', pack('S', 0xff))) !== 0xff;
         $this->tot_records              = ($this->shx_size - 100) / 8;
-        
+
         // Read Headers
         $this->readSHPHeader();
         $this->readDBFHeader();
-        
+
         // Init record pointer
         $this->rewind();
     }
-    
-    
-    
+
+
+
     /****************************** PRIVATE ******************************/
     private function openFile($file)
     {
@@ -259,25 +259,25 @@ class ShapeFile implements \Iterator
         }
         return $handle;
     }
-    
+
     private function closeFile($file)
     {
         if ($file) {
             fclose($file);
         }
     }
-    
+
     private function setFilePointer($handle, $position)
     {
         fseek($handle, $position, SEEK_SET);
     }
-    
+
     private function setFileOffset($handle, $offset)
     {
         fseek($handle, $offset, SEEK_CUR);
     }
-    
-    
+
+
     private function readData($handle, $type, $length, $invert_endianness = false)
     {
         $data = fread($handle, $length);
@@ -289,38 +289,38 @@ class ShapeFile implements \Iterator
         }
         return current(unpack($type, $data));
     }
-    
+
     private function readInt16L($handle)
     {
         return $this->readData($handle, 'v', 2);
     }
-    
+
     private function readInt32B($handle)
     {
         return $this->readData($handle, 'N', 4);
     }
-    
+
     private function readInt32L($handle)
     {
         return $this->readData($handle, 'V', 4);
     }
-    
+
     private function readDoubleL($handle)
     {
         return $this->readData($handle, 'd', 8, $this->big_endian_machine);
     }
-    
+
     private function readString($handle, $length)
     {
         return utf8_encode(trim($this->readData($handle, 'A*', $length)));
     }
-    
+
     private function readChar($handle)
     {
         return $this->readData($handle, 'C', 1);
     }
-    
-    
+
+
     private function readSHPHeader()
     {
         // Shape Type
@@ -340,7 +340,7 @@ class ShapeFile implements \Iterator
             unset($this->bounding_box['mmax']);
         }
     }
-    
+
     private function readDBFHeader()
     {
         $this->setFilePointer($this->dbf_handle, 4);
@@ -349,7 +349,7 @@ class ShapeFile implements \Iterator
         }
         $this->dbf_header_size  = $this->readInt16L($this->dbf_handle);
         $this->dbf_record_size  = $this->readInt16L($this->dbf_handle);
-        
+
         $i                  = -1;
         $this->dbf_fields   = array();
         $this->setFilePointer($this->dbf_handle, 32);
@@ -371,19 +371,19 @@ class ShapeFile implements \Iterator
             $this->throwException('DBF_FILE_NOT_VALID');
         }
     }
-    
-    
+
+
     private function readSHPRecord($geometry_format = null)
     {
         if (!$this->valid()) {
             return false;
         }
-        
+
         // Read SHP offset from SHX
         $this->setFilePointer($this->shx_handle, 100 + (($this->current_record - 1) * 8));
         $shp_offset = $this->readInt32B($this->shx_handle) * 2;
         $this->setFilePointer($this->shp_handle, $shp_offset);
-        
+
         // Read SHP record header
         $record_number  = $this->readInt32B($this->shp_handle);
         $content_length = $this->readInt32B($this->shp_handle);
@@ -391,7 +391,7 @@ class ShapeFile implements \Iterator
         if ($shape_type != 0 && $shape_type != $this->shape_type) {
             $this->throwException('WRONG_RECORD_TYPE', $shape_type);
         }
-        
+
         // Read geometry
         $methods = array(
             0   => 'readNull',
@@ -411,7 +411,7 @@ class ShapeFile implements \Iterator
         $shp = $this->{$methods[$shape_type]}();
         // Read DBF data
         $dbf = $this->readDBFRecord();
-        
+
         // Convert output
         $geometry_format = $geometry_format ?: $this->default_geometry_format;
         if ($geometry_format == self::GEOMETRY_WKT) {
@@ -433,13 +433,13 @@ class ShapeFile implements \Iterator
             }
             $shp = $temp;
         }
-        
+
         return array(
             'shp'   => $shp,
             'dbf'   => $dbf
         );
     }
-    
+
     private function readDBFRecord()
     {
         $this->setFilePointer($this->dbf_handle, $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size));
@@ -448,7 +448,7 @@ class ShapeFile implements \Iterator
         if (ftell($this->dbf_handle) >= ($this->dbf_size - $this->dbf_record_size + 1)) {
             $this->throwException('DBF_EOF_REACHED');
         }
-        
+
         $ret = array();
         $ret['_deleted'] = ($this->readChar($this->dbf_handle) !== 0x20);
         foreach ($this->dbf_fields as $i => $field) {
@@ -466,17 +466,17 @@ class ShapeFile implements \Iterator
             }
             $ret[$field['name']] = $value;
         }
-        
+
         return $ret;
     }
-    
+
     private function checkRecordIndex($index)
     {
         return ($index > 0 && $index <= $this->tot_records);
     }
-    
-    
-    
+
+
+
     private function readZ()
     {
         $ret    = array();
@@ -486,7 +486,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function readM()
     {
         $ret    = array();
@@ -496,13 +496,13 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function parseM($value)
     {
         return ($value < -pow(10, 38)) ? false : $value;
     }
-    
-    
+
+
     private function readXYBoundingBox()
     {
         $xmin = $this->readDoubleL($this->shp_handle);
@@ -516,7 +516,7 @@ class ShapeFile implements \Iterator
             'ymax'  => $ymax
         );
     }
-    
+
     private function readZRange()
     {
         $values = array(
@@ -525,7 +525,7 @@ class ShapeFile implements \Iterator
         );
         return $this->flags[self::FLAG_SUPPRESS_Z] ? array() : $values;
     }
-    
+
     private function readMRange()
     {
         $values = array(
@@ -534,14 +534,14 @@ class ShapeFile implements \Iterator
         );
         return $this->flags[self::FLAG_SUPPRESS_M] ? array() : $values;
     }
-    
-    
+
+
     private function readNull()
     {
         return null;
     }
-    
-    
+
+
     private function readPoint()
     {
         return array(
@@ -549,7 +549,7 @@ class ShapeFile implements \Iterator
             'y' => $this->readDoubleL($this->shp_handle)
         );
     }
-    
+
     private function readPointM()
     {
         // Point
@@ -558,7 +558,7 @@ class ShapeFile implements \Iterator
         $ret += $this->readM();
         return $ret;
     }
-    
+
     private function readPointZ()
     {
         // Point
@@ -569,8 +569,8 @@ class ShapeFile implements \Iterator
         $ret += $this->readM();
         return $ret;
     }
-    
-    
+
+
     private function readMultiPoint()
     {
         // Header
@@ -585,7 +585,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function readMultiPointM()
     {
         // MultiPoint
@@ -598,7 +598,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function readMultiPointZ()
     {
         // MultiPoint
@@ -617,8 +617,8 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
-    
+
+
     private function readPolyLine()
     {
         // Header
@@ -650,7 +650,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function readPolyLineM()
     {
         // PolyLine
@@ -665,7 +665,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function readPolyLineZ()
     {
         // PolyLine
@@ -688,28 +688,32 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
-    
+
+
     private function readPolygon()
     {
         return $this->parsePolygon($this->readPolyLine());
     }
-    
+
     private function readPolygonM()
     {
         return $this->parsePolygon($this->readPolyLineM());
     }
-    
+
     private function readPolygonZ()
     {
         return $this->parsePolygon($this->readPolyLineZ());
     }
-    
+
     private function parsePolygon($data)
     {
         $i      = -1;
         $parts  = array();
         foreach ($data['parts'] as $k=>$rawpart) {
+            //Ignore polygons smaller than 5 points
+            if(count($rawpart['points']) <= 4){
+                continue;
+            }
             if ($k == 0 || $this->isClockwise($rawpart['points'])) { //force ignore clockwise on first polygon
                 ++$i;
                 $parts[$i] = array(
@@ -731,33 +735,33 @@ class ShapeFile implements \Iterator
             'parts'         => $parts
         );
     }
-    
+
     private function isClockwise($points, $exp = 1)
     {
         $num_points = count($points);
         if ($num_points < 2) {
             return true;
         }
-        
+
         $num_points--;
         $tot = 0;
         for ($i = 0; $i < $num_points; ++$i) {
             $tot += ($exp * $points[$i]['x'] * $points[$i+1]['y']) - ($exp * $points[$i]['y'] * $points[$i+1]['x']);
         }
         $tot += ($exp * $points[$num_points]['x'] * $points[0]['y']) - ($exp * $points[$num_points]['y'] * $points[0]['x']);
-        
+
         if ($tot == 0) {
             if ($exp >= pow(10, 9)) {
                 $this->throwException('POLYGON_AREA_TOO_SMALL');
             }
             return $this->isClockwise($points, $exp * pow(10, 3));
         }
-        
+
         return $tot < 0;
     }
-    
-    
-    
+
+
+
     private function checkPointsM($points)
     {
         foreach ($points as $point) {
@@ -767,7 +771,7 @@ class ShapeFile implements \Iterator
         }
         return false;
     }
-    
+
     private function checkPartsM($parts)
     {
         foreach ($parts as $part) {
@@ -777,8 +781,8 @@ class ShapeFile implements \Iterator
         }
         return false;
     }
-    
-    
+
+
     private function implodePoint($point, $flagZ, $flagM)
     {
         $ret = array($point['x'], $point['y']);
@@ -790,7 +794,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function implodePoints($points, $flagZ, $flagM, $reverse = false)
     {
         $ret = array();
@@ -802,7 +806,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function implodeParts($parts, $flagZ, $flagM, $reverse = false)
     {
         $ret = array();
@@ -811,12 +815,12 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function implodeBoundingBox($bounding_box)
     {
         $flagZ  = isset($bounding_box['zmin'], $bounding_box['zmax']);
         $flagM  = isset($bounding_box['mmin'], $bounding_box['mmax']) && $bounding_box['mmin'] !== false && $bounding_box['mmax'] !== false;
-        
+
         $ret = array(
             $bounding_box['xmin'],
             $bounding_box['ymin']
@@ -827,7 +831,7 @@ class ShapeFile implements \Iterator
         if ($flagM) {
             $ret[] = ($bounding_box['mmin'] === false) ? 0 : $bounding_box['mmin'];
         }
-        
+
         $ret[] = $bounding_box['xmax'];
         $ret[] = $bounding_box['ymax'];
         if ($flagZ) {
@@ -836,17 +840,17 @@ class ShapeFile implements \Iterator
         if ($flagM) {
             $ret[] = ($bounding_box['mmax'] === false) ? 0 : $bounding_box['mmax'];
         }
-        
+
         return $ret;
     }
-    
-    
+
+
     private function toWKT($shp)
     {
         if (!$shp) {
             return null;
         }
-        
+
         $geom_type  = $this->shape_type % 10;
         $coord_type = floor($this->shape_type / 10);
         $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
@@ -856,12 +860,12 @@ class ShapeFile implements \Iterator
                 $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
                 $ret    = 'POINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints(array($shp), $flagZ, $flagM);
                 break;
-            
+
             case 8:
                 $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
                 $ret    = 'MULTIPOINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints($shp['points'], $flagZ, $flagM);
                 break;
-            
+
             case 3:
                 $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
                 if ($shp['numparts'] == 1) {
@@ -870,7 +874,7 @@ class ShapeFile implements \Iterator
                     $ret = 'MULTILINESTRING' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . '('.$this->wktImplodeParts($shp['parts'], $flagZ, $flagM).')';
                 }
                 break;
-            
+
             case 5:
                 $flagM = false;
                 if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
@@ -894,7 +898,7 @@ class ShapeFile implements \Iterator
         }
         return $ret;
     }
-    
+
     private function wktImplodePoints($points, $flagZ, $flagM)
     {
         $ret = array();
@@ -903,7 +907,7 @@ class ShapeFile implements \Iterator
         }
         return '(' . implode(', ', $ret) . ')';
     }
-    
+
     private function wktImplodeParts($parts, $flagZ, $flagM)
     {
         $ret = array();
@@ -912,14 +916,14 @@ class ShapeFile implements \Iterator
         }
         return implode(', ', $ret);
     }
-    
-    
+
+
     private function toGeoJSON($shp, $dbf = null)
     {
         if (!$shp) {
             return null;
         }
-        
+
         $geom_type  = $this->shape_type % 10;
         $coord_type = floor($this->shape_type / 10);
         $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
@@ -932,15 +936,15 @@ class ShapeFile implements \Iterator
                     'coordinates'   => $this->implodePoint($shp, $flagZ, $flagM)
                 );
                 break;
-            
+
             case 8:
-               $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
-               $ret = array(
+                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
+                $ret = array(
                     'type'          => 'MultiPoint' . ($flagM ? 'M' : ''),
                     'coordinates'   => $this->implodePoints($shp['points'], $flagZ, $flagM)
                 );
-               break;
-            
+                break;
+
             case 3:
                 $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
                 if ($shp['numparts'] == 1) {
@@ -955,7 +959,7 @@ class ShapeFile implements \Iterator
                     );
                 }
                 break;
-            
+
             case 5:
                 $flagM = false;
                 if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
@@ -983,20 +987,20 @@ class ShapeFile implements \Iterator
                 }
                 break;
         }
-        
+
         if ($dbf) {
             $ret = array('type'     => 'Feature')
-                 + (($geom_type != 1) ? array('bbox' => $this->implodeBoundingBox($shp['bounding_box'])) : array())
-                 + array(
+                + (($geom_type != 1) ? array('bbox' => $this->implodeBoundingBox($shp['bounding_box'])) : array())
+                + array(
                     'geometry'      => $ret,
                     'properties'    => $dbf
-            );
+                );
         }
         return json_encode($ret);
     }
-    
-    
-    
+
+
+
     private function throwException($error, $details = '')
     {
         $code       = self::$error_messages[$error][0];
